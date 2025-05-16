@@ -1,0 +1,116 @@
+---
+name: PR Conflict Checker
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  check-conflicts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for merge conflicts
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+
+            // Get all open PRs
+            const openPRs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open'
+            });
+
+            // If triggered by PR, check this PR against others
+            if (context.eventName === 'pull_request') {
+              const currentPR = context.payload.pull_request;
+              console.log(`Checking conflicts for PR #${currentPR.number}`);
+
+              // Compare with other PRs
+              for (const pr of openPRs.data) {
+                // Skip self
+                if (pr.number === currentPR.number) continue;
+
+                try {
+                  // Get comparison between PRs
+                  const compare = await github.rest.repos.compareCommits({
+                    owner,
+                    repo,
+                    base: pr.head.ref,
+                    head: currentPR.head.ref
+                  });
+
+                  // If there are conflicts
+                  if (compare.data.status === 'diverged') {
+                    console.log(`PR #${currentPR.number} may conflict with PR #${pr.number}`);
+
+                    // Add comment to current PR
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: currentPR.number,
+                      body: `⚠️ This PR may conflict with PR #${pr.number} (${pr.title}). Please check for potential merge conflicts.`
+                    });
+                  }
+                } catch (error) {
+                  console.log(`Unable to compare with PR #${pr.number}: ${error.message}`);
+                }
+              }
+            }
+            // If triggered by push to main, check all PRs
+            else if (context.eventName === 'push') {
+              console.log('Checking all open PRs for conflicts with main');
+
+              for (const pr of openPRs.data) {
+                try {
+                  // Check if PR is mergeable
+                  const prDetails = await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: pr.number
+                  });
+
+                  if (prDetails.data.mergeable === false) {
+                    console.log(`PR #${pr.number} has conflicts with main`);
+
+                    // Add 'has conflicts' label
+                    await github.rest.issues.addLabels({
+                      owner,
+                      repo,
+                      issue_number: pr.number,
+                      labels: ['has conflicts']
+                    });
+
+                    // Add comment
+                    await github.rest.issues.createComment({
+                      owner,
+                      repo,
+                      issue_number: pr.number,
+                      body: `⚠️ This PR now has conflicts with the main branch. Please resolve conflicts before merging.`
+                    });
+                  } else if (prDetails.data.mergeable === true) {
+                    // Try to remove conflict label if it exists
+                    try {
+                      await github.rest.issues.removeLabel({
+                        owner,
+                        repo,
+                        issue_number: pr.number,
+                        name: 'has conflicts'
+                      });
+                    } catch (error) {
+                      // Label might not exist, that's fine
+                    }
+                  }
+                } catch (error) {
+                  console.log(`Error checking PR #${pr.number}: ${error.message}`);
+                }
+              }
+            }
