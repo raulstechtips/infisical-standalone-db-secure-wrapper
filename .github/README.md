@@ -13,11 +13,16 @@ Workflow that runs on pull requests to the main branch. It:
    - Runs YAML linting with a custom configuration
    - Uses chart-testing action to perform comprehensive chart linting
 
-2. **Security Scan**: Analyzes chart for security vulnerabilities
+2. **Unit Test**: Tests the Helm chart templates functionality
+   - Runs helm-unittest against deployment-patch template
+   - Runs helm-unittest against migration-job-patch template
+   - Validates templates generate expected Kubernetes resources
+
+3. **Security Scan**: Analyzes chart for security vulnerabilities
    - Uses Trivy to scan for security issues with CRITICAL and HIGH severity
    - Displays results in table format
 
-3. **Version Check**: Ensures proper versioning
+4. **Version Check**: Ensures proper versioning
    - Compares the chart version in the PR with the version in the main branch
    - Verifies that the version has been incremented
    - Adds a comment to the PR indicating version check status
@@ -28,11 +33,13 @@ Workflow that runs on pushes to the main branch. It:
 
 1. **Lint**: Same linting process as the PR validation
 
-2. **Security Scan**: Similar to PR validation but:
+2. **Unit Test**: Same unit tests as the PR validation
+
+3. **Security Scan**: Similar to PR validation but:
    - Outputs results in SARIF format
    - Uploads findings to GitHub Security tab
 
-3. **Release**: Publishes the chart if checks pass
+4. **Release**: Publishes the chart if checks pass
    - Extracts chart information (name, version)
    - Generates release notes using release-drafter
    - Packages the Helm chart

@@ -36,6 +36,31 @@ jobs:
       - name: Lint Helm chart
         run: ct lint --config .github/ct.yaml
 
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: Install Helm unittest plugin
+        run: |
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git
+
+      - name: Run Deployment Patch Tests
+        run: helm unittest --color -f tests/unit/deployment-patch_test.yaml .
+
+      - name: Run Migration Job Patch Tests
+        run: helm unittest --color -f tests/unit/migration-job-patch_test.yaml .
+
   security-scan:
     runs-on: ubuntu-latest
     needs: lint
