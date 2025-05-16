@@ -119,26 +119,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'v3.12.0'
-
       - name: Configure Git
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-      # Ensure we have a fresh checkout for the remaining steps
-      - name: Checkout for release
-        uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
         with:
-          fetch-depth: 0
-          path: cr-checkout
+          version: 'v3.12.0'
 
-      - name: Helm dependency update
+      - name: Add dependency repositories
         run: |
-          cd cr-checkout
+          helm repo add infisical-standalone https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
           helm dependency update .
 
       - name: Extract chart information
@@ -146,8 +139,8 @@ jobs:
         uses: mikefarah/yq@master
         with:
           cmd: |
-            echo "name=$(yq '.name' cr-checkout/Chart.yaml)" >> $GITHUB_OUTPUT
-            echo "version=$(yq '.version' cr-checkout/Chart.yaml)" >> $GITHUB_OUTPUT
+            echo "name=$(yq '.name' Chart.yaml)" >> $GITHUB_OUTPUT
+            echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
 
       - name: Generate release notes
         id: release_notes
@@ -159,34 +152,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package Helm Chart
+      # Run chart-releaser to package chart, update index, and push to gh-pages
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.5.0
+        with:
+          charts_dir: .
+          config: .github/cr.yaml
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Package the chart for the GitHub release
+      - name: Package Helm Chart for GitHub Release
         id: package
         run: |
-          cd cr-checkout
           helm package .
           PACKAGE_PATH=$(ls *.tgz)
           echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
-          # Move the package back up to the workspace root for the GitHub release
-          mv $PACKAGE_PATH ..
 
-      # Create proper Helm repository structure for GitHub Pages
-      - name: Create Helm repo structure
-        run: |
-          mkdir -p gh-pages-output
-          cp cr-checkout/*.tgz gh-pages-output/
-          cd gh-pages-output
-          touch index.yaml
-          touch .nojekyll  # Prevents GitHub Pages from using Jekyll processing
-          helm repo index . --url https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: gh-pages-output
-          keep_files: false  # Replace all gh-pages content with our new structure
-          force_orphan: true  # Create a clean gh-pages branch
-
+      # Create GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
