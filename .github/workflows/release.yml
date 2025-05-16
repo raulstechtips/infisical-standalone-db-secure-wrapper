@@ -114,6 +114,10 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for pushing commits to the repository
+      pull-requests: write
+      issues: write
     needs:
       - lint
       - unit-test
@@ -173,7 +177,9 @@ jobs:
           # Commit the changes
           git add Chart.yaml
           git commit -m "Bump version to $NEW_VERSION"
-          git push
+          git push https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract chart information
         id: chart_info
