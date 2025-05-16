@@ -101,7 +101,8 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'table'  # Changed from 'sarif' to 'table' to avoid SARIF upload issues
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
