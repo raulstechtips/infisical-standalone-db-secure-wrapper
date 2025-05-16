@@ -1,0 +1,223 @@
+---
+name: Release Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_increment:
+        description: 'Version increment type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      release_title:
+        description: 'Custom release title (optional)'
+        required: false
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: YAML Lint
+        uses: karancode/yamllint-github-action@master
+        with:
+          yamllint_config_filepath: config.yamllint.yaml
+          yamllint_strict: false
+          yamllint_comment: true
+
+      - name: Run chart-testing (lint)
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Lint Helm chart
+        run: ct lint --config .github/ct.yaml
+
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: Install Helm unittest plugin
+        run: |
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git
+
+      - name: Run Deployment Patch Tests
+        run: helm unittest --color -f tests/unit/deployment-patch_test.yaml .
+
+      - name: Run Migration Job Patch Tests
+        run: helm unittest --color -f tests/unit/migration-job-patch_test.yaml .
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - unit-test
+      - security-scan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: Get current version
+        id: current_version
+        uses: mikefarah/yq@master
+        with:
+          cmd: echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
+
+      - name: Increment version
+        id: new_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+
+          # Parse version into components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # Increment based on input
+          if [ "${{ github.event.inputs.version_increment }}" == "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "${{ github.event.inputs.version_increment }}" == "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          # Update Chart.yaml with new version
+          yq e ".version = \"$NEW_VERSION\"" -i Chart.yaml
+
+          # Commit the changes
+          git add Chart.yaml
+          git commit -m "Bump version to $NEW_VERSION"
+          git push
+
+      - name: Extract chart information
+        id: chart_info
+        uses: mikefarah/yq@master
+        with:
+          cmd: |
+            echo "name=$(yq '.name' Chart.yaml)" >> $GITHUB_OUTPUT
+            echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter.yml
+          disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Helm Chart
+        id: package
+        run: |
+          helm package .
+          echo "package_path=${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}.tgz" >> $GITHUB_OUTPUT
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          keep_files: true
+
+      - name: Update Helm index
+        uses: helm/chart-releaser-action@v1.5.0
+        with:
+          charts_dir: .
+          config: .github/cr.yaml
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.chart_info.outputs.version }}
+          name: ${{ github.event.inputs.release_title || format('{0} v{1}', steps.chart_info.outputs.name, steps.chart_info.outputs.version) }}
+          body: ${{ steps.release_notes.outputs.body }}
+          files: ${{ steps.package.outputs.package_path }}
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

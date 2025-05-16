@@ -12,9 +12,6 @@ assignees: ''
 ## Proposed Solution
 <!-- Describe the solution you'd like to see implemented -->
 
-## Related Component
-<!-- Which component/application would be affected? (e.g., Authentik, Traefik, etc.) -->
-
 ## Alternatives Considered
 <!-- Describe any alternative solutions you've considered -->
 

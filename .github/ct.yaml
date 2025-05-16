@@ -1,0 +1,16 @@
+---
+# Chart Testing config
+# See: https://github.com/helm/chart-testing
+
+remote: origin
+target-branch: main
+chart-dirs:
+  - .
+chart-repos:
+  - infisical=https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+helm-extra-args: "--timeout 600s"
+validate-maintainers: false
+validate-chart-schema: true
+validate-yaml: true
+check-version-increment: true
+debug: true
