@@ -145,15 +145,17 @@ jobs:
       # Create a tag for the chart version to ensure chart-releaser picks it up
       - name: Create git tag if doesn't exist
         run: |
-          VERSION="v${{ steps.chart_info.outputs.version }}"
-          echo "Using version tag: $VERSION"
+          VERSION="${{ steps.chart_info.outputs.version }}"
+          CHART_NAME="${{ steps.chart_info.outputs.name }}"
+          TAG_NAME="$CHART_NAME-$VERSION"
+          echo "Using version tag: $TAG_NAME"
 
-          if ! git rev-parse "$VERSION" >/dev/null 2>&1; then
-            echo "Creating new tag: $VERSION"
-            git tag "$VERSION"
-            git push origin "$VERSION" || echo "Tag push failed, may already exist remotely"
+          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Creating new tag: $TAG_NAME"
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME" || echo "Tag push failed, may already exist remotely"
           else
-            echo "Tag $VERSION already exists"
+            echo "Tag $TAG_NAME already exists"
           fi
 
       - name: Generate release notes
@@ -172,14 +174,11 @@ jobs:
         with:
           charts_dir: .
           config: .github/cr.yaml
-          mark_as_latest: true
-          skip_existing: false
-          skip_upload: false
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Force including current chart
-          CR_SKIP_EXISTING: false
-          CR_FORCE_PUBLICATION: true
+          CR_SKIP_EXISTING: "false"
+          CR_FORCE_UPDATE: "true"
+          CR_MAKE_RELEASE_LATEST: "true"
 
       # Package the chart for the GitHub release
       - name: Package Helm Chart for GitHub Release
@@ -193,7 +192,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.chart_info.outputs.version }}
+          tag_name: ${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}
           name: ${{ github.event.inputs.release_title || format('{0} v{1}', steps.chart_info.outputs.name, steps.chart_info.outputs.version) }}
           body: ${{ steps.release_notes.outputs.body }}
           files: ${{ steps.package.outputs.package_path }}
