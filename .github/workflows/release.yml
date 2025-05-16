@@ -106,7 +106,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required for pushing commits to the repository
+      contents: write  # Required for pushing commits to the repository and GitHub Pages
       pull-requests: write
       issues: write
     needs:
@@ -169,20 +169,23 @@ jobs:
           # Move the package back up to the workspace root for the GitHub release
           mv $PACKAGE_PATH ..
 
+      # Create proper Helm repository structure for GitHub Pages
+      - name: Create Helm repo structure
+        run: |
+          mkdir -p gh-pages-output
+          cp cr-checkout/*.tgz gh-pages-output/
+          cd gh-pages-output
+          touch index.yaml
+          touch .nojekyll  # Prevents GitHub Pages from using Jekyll processing
+          helm repo index . --url https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: cr-checkout
-          keep_files: true
-
-      - name: Update Helm index
-        uses: helm/chart-releaser-action@v1.5.0
-        with:
-          charts_dir: cr-checkout
-          config: cr-checkout/.github/cr.yaml
-        env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: gh-pages-output
+          keep_files: false  # Replace all gh-pages content with our new structure
+          force_orphan: true  # Create a clean gh-pages branch
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
