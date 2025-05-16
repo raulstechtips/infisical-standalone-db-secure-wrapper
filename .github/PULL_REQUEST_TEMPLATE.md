@@ -2,9 +2,14 @@
 <!-- Brief description of what this PR does and why it's needed -->
 
 ## Type of Change
-- [ ] Configuration Update
-- [ ] Version Upgrade
-- [ ] Bug Fix
+<!-- Please select all relevant options by placing an 'x' in the brackets -->
+- [ ] 💥 Breaking Change (breaking)
+- [ ] 🚀 New Feature (feature)
+- [ ] 🐛 Bug Fix (fix)
+- [ ] 🧰 Maintenance (chore)
+- [ ] 📚 Documentation (docs)
+- [ ] ⚠️ Security (security)
+- [ ] 🔄 Dependencies (deps)
 - [ ] Other (please describe)
 
 ## Testing Performed

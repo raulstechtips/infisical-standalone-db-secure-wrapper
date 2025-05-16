@@ -30,6 +30,34 @@ categories:
     labels:
       - 'dependencies'
       - 'deps'
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/breaking/i'
+    body:
+      - '/breaking change/i'
+  - label: 'feature'
+    title:
+      - '/feat/i'
+      - '/feature/i'
+  - label: 'fix'
+    title:
+      - '/fix/i'
+      - '/hotfix/i'
+  - label: 'chore'
+    title:
+      - '/chore/i'
+  - label: 'docs'
+    title:
+      - '/docs/i'
+      - '/documentation/i'
+  - label: 'security'
+    title:
+      - '/security/i'
+  - label: 'deps'
+    title:
+      - '/deps/i'
+      - '/dependencies/i'
 exclude-labels:
   - 'skip-changelog'
   - 'duplicate'
