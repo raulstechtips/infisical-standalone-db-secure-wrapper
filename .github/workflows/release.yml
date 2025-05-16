@@ -142,6 +142,20 @@ jobs:
             echo "name=$(yq '.name' Chart.yaml)" >> $GITHUB_OUTPUT
             echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
 
+      # Create a tag for the chart version to ensure chart-releaser picks it up
+      - name: Create git tag if doesn't exist
+        run: |
+          VERSION="v${{ steps.chart_info.outputs.version }}"
+          echo "Using version tag: $VERSION"
+
+          if ! git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Creating new tag: $VERSION"
+            git tag "$VERSION"
+            git push origin "$VERSION" || echo "Tag push failed, may already exist remotely"
+          else
+            echo "Tag $VERSION already exists"
+          fi
+
       - name: Generate release notes
         id: release_notes
         uses: release-drafter/release-drafter@v5
@@ -158,8 +172,14 @@ jobs:
         with:
           charts_dir: .
           config: .github/cr.yaml
+          mark_as_latest: true
+          skip_existing: false
+          skip_upload: false
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Force including current chart
+          CR_SKIP_EXISTING: false
+          CR_FORCE_PUBLICATION: true
 
       # Package the chart for the GitHub release
       - name: Package Helm Chart for GitHub Release
