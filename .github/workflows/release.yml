@@ -129,16 +129,25 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
+      # Ensure we have a fresh checkout for the remaining steps
+      - name: Checkout for release
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: cr-checkout
+
       - name: Helm dependency update
-        run: helm dependency update .
+        run: |
+          cd cr-checkout
+          helm dependency update .
 
       - name: Extract chart information
         id: chart_info
         uses: mikefarah/yq@master
         with:
           cmd: |
-            echo "name=$(yq '.name' Chart.yaml)" >> $GITHUB_OUTPUT
-            echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
+            echo "name=$(yq '.name' cr-checkout/Chart.yaml)" >> $GITHUB_OUTPUT
+            echo "version=$(yq '.version' cr-checkout/Chart.yaml)" >> $GITHUB_OUTPUT
 
       - name: Generate release notes
         id: release_notes
@@ -152,21 +161,25 @@ jobs:
       - name: Package Helm Chart
         id: package
         run: |
+          cd cr-checkout
           helm package .
-          echo "package_path=${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}.tgz" >> $GITHUB_OUTPUT
+          PACKAGE_PATH=$(ls *.tgz)
+          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
+          # Move the package back up to the workspace root for the GitHub release
+          mv $PACKAGE_PATH ..
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          publish_dir: cr-checkout
           keep_files: true
 
       - name: Update Helm index
         uses: helm/chart-releaser-action@v1.5.0
         with:
-          charts_dir: .
-          config: .github/cr.yaml
+          charts_dir: cr-checkout
+          config: cr-checkout/.github/cr.yaml
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
