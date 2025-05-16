@@ -142,22 +142,6 @@ jobs:
             echo "name=$(yq '.name' Chart.yaml)" >> $GITHUB_OUTPUT
             echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
 
-      # Create a tag for the chart version to ensure chart-releaser picks it up
-      - name: Create git tag if doesn't exist
-        run: |
-          VERSION="${{ steps.chart_info.outputs.version }}"
-          CHART_NAME="${{ steps.chart_info.outputs.name }}"
-          TAG_NAME="$CHART_NAME-$VERSION"
-          echo "Using version tag: $TAG_NAME"
-
-          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "Creating new tag: $TAG_NAME"
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME" || echo "Tag push failed, may already exist remotely"
-          else
-            echo "Tag $TAG_NAME already exists"
-          fi
-
       - name: Generate release notes
         id: release_notes
         uses: release-drafter/release-drafter@v5
@@ -168,19 +152,51 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Run chart-releaser to package chart, update index, and push to gh-pages
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.5.0
-        with:
-          charts_dir: .
-          config: .github/cr.yaml
-        env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CR_SKIP_EXISTING: "false"
-          CR_FORCE_UPDATE: "true"
-          CR_MAKE_RELEASE_LATEST: "true"
+      # Direct approach using chart-releaser CLI
+      - name: Package and Deploy Helm Chart to GitHub Pages
+        run: |
+          # Download and setup chart-releaser
+          curl -sSLo cr.tar.gz "https://github.com/helm/chart-releaser/releases/download/v1.5.0/chart-releaser_1.5.0_linux_amd64.tar.gz"
+          tar -xzf cr.tar.gz
+          rm -f cr.tar.gz
 
-      # Package the chart for the GitHub release
+          # Get repository owner and name
+          owner="raulstechtips"
+          repo="infisical-standalone-db-secure-wrapper"
+
+          # Package the chart
+          echo "Packaging Helm chart..."
+          ./cr package .
+
+          # Upload chart to GitHub releases
+          echo "Uploading chart to GitHub releases..."
+          ./cr upload \
+            --owner "$owner" \
+            --git-repo "$repo" \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --release-name-template "{{ .Name }}-{{ .Version }}" \
+            --skip-existing=false
+
+          # Check if gh-pages branch exists locally or create it
+          if ! git show-ref --verify --quiet refs/heads/gh-pages; then
+            echo "Creating gh-pages branch..."
+            git checkout --orphan gh-pages
+            git rm -rf .
+            git commit --allow-empty -m "Create gh-pages branch"
+            git push origin gh-pages
+            git checkout main
+          fi
+
+          # Update Helm index and push to GitHub Pages
+          echo "Updating Helm index..."
+          ./cr index \
+            --owner "$owner" \
+            --git-repo "$repo" \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --charts-repo "https://${owner}.github.io/${repo}" \
+            --push
+
+      # Package the chart for GitHub Release
       - name: Package Helm Chart for GitHub Release
         id: package
         run: |
