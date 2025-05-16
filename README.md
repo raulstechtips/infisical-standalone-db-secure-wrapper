@@ -1,7 +1,9 @@
 # Infisical DB Secure Wrapper
 
 [![Release Helm Chart](https://github.com/raulstechtips/infisical-standalone-db-secure-wrapper/actions/workflows/release.yml/badge.svg)](https://github.com/raulstechtips/infisical-standalone-db-secure-wrapper/actions/workflows/release.yml)
-[![PR Validation](https://github.com/raulstechtips/infisical-standalone-db-secure-wrapper/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/raulstechtips/infisical-standalone-db-secure-wrapper/actions/workflows/pr-validation.yml)
+![Helm Chart](https://img.shields.io/badge/Chart%20Version-0.1.0-blue)
+![Infisical](https://img.shields.io/badge/Infisical-1.5.0-blue)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 A minimal Helm chart wrapper for Infisical that adds secure database connections with SSL certificates support. This wrapper allows you to deploy Infisical with external PostgreSQL and Redis instances using SSL/TLS connections.
 
@@ -253,7 +255,3 @@ helm install infisical-test . --dry-run
 # Dependency update
 helm dependency update .
 ```
-
-## License
-
-This wrapper chart is licensed under the same terms as the upstream Infisical chart.
