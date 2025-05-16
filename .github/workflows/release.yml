@@ -4,15 +4,6 @@ name: Release Helm Chart
 on:
   workflow_dispatch:
     inputs:
-      version_increment:
-        description: 'Version increment type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-        default: 'patch'
       release_title:
         description: 'Custom release title (optional)'
         required: false
@@ -140,46 +131,6 @@ jobs:
 
       - name: Helm dependency update
         run: helm dependency update .
-
-      - name: Get current version
-        id: current_version
-        uses: mikefarah/yq@master
-        with:
-          cmd: echo "version=$(yq '.version' Chart.yaml)" >> $GITHUB_OUTPUT
-
-      - name: Increment version
-        id: new_version
-        run: |
-          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
-
-          # Parse version into components
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-          # Increment based on input
-          if [ "${{ github.event.inputs.version_increment }}" == "major" ]; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif [ "${{ github.event.inputs.version_increment }}" == "minor" ]; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          else
-            PATCH=$((PATCH + 1))
-          fi
-
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "New version: $NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
-          # Update Chart.yaml with new version
-          yq e ".version = \"$NEW_VERSION\"" -i Chart.yaml
-
-          # Commit the changes
-          git add Chart.yaml
-          git commit -m "Bump version to $NEW_VERSION"
-          git push https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract chart information
         id: chart_info
