@@ -1,0 +1,109 @@
+---
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: YAML Lint
+        uses: karancode/yamllint-github-action@master
+        with:
+          yamllint_config_filepath: config.yamllint.yaml
+          yamllint_strict: false
+          yamllint_comment: true
+
+      - name: Run chart-testing (lint)
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Lint Helm chart
+        run: ct lint --config .github/ct.yaml
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Helm dependency update
+        run: helm dependency update .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Check if version was increased
+        id: version_check
+        run: |
+          PR_VERSION=$(grep 'version:' Chart.yaml | awk '{print $2}' | tr -d '[:space:]')
+          BASE_VERSION=$(grep 'version:' base/Chart.yaml | awk '{print $2}' | tr -d '[:space:]')
+
+          echo "PR version: $PR_VERSION"
+          echo "Base version: $BASE_VERSION"
+
+          if [ "$(printf '%s\n' "$BASE_VERSION" "$PR_VERSION" | sort -V | head -n1)" = "$PR_VERSION" ]; then
+            if [ "$BASE_VERSION" = "$PR_VERSION" ]; then
+              echo "::warning::Chart version has not been incremented"
+              echo "result=warning" >> $GITHUB_OUTPUT
+              exit 0
+            else
+              echo "::error::Chart version $PR_VERSION is lower than base version $BASE_VERSION"
+              echo "result=error" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          else
+            echo "::notice::Chart version has been properly incremented from $BASE_VERSION to $PR_VERSION"
+            echo "result=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add version check result to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: version-check
+          message: |
+            ## Version Check
+
+            ${{ steps.version_check.outputs.result == 'success' && '✅ Chart version has been properly incremented.' || '' }}
+            ${{ steps.version_check.outputs.result == 'warning' && '⚠️ Warning: Chart version has not been incremented.' || '' }}
+            ${{ steps.version_check.outputs.result == 'error' && '❌ Error: Chart version is lower than the base version.' || '' }}
