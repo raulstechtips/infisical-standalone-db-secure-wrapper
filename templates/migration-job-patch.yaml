@@ -1,0 +1,35 @@
+---
+{{- $infisicalValues := index .Values "infisical-standalone" "infisical" }}
+{{- if hasKey .Values "dbExternal" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-schema-migration-{{ .Release.Revision }}"
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+$patch: strategic
+spec:
+  template:
+    spec:
+      {{- with $infisicalValues.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: infisical-schema-migration
+          {{- if .Values.dbExternal.postgres.enabled }}
+          env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.dbExternal.postgres.passwordSecret.name }}
+                key: {{ .Values.dbExternal.postgres.passwordSecret.key }}
+          - name: DB_CONNECTION_URI
+            value: {{ include "infisical-db-secure.postgresConnectionString" . }}
+          {{- end }}
+          {{- with $infisicalValues.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

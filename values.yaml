@@ -1,0 +1,55 @@
+---
+infisical-standalone:
+  infisical:
+    # -- Additional volumes to mount to the Infisical pod
+    # Use this to mount custom CA certificates for PostgreSQL TLS connections
+    # Example: Mount a root CA certificate from a secret to verify PostgreSQL server certificate
+    extraVolumes: []
+      # - name: postgres-ca-cert
+      #   secret:
+      #     secretName: postgres-ca-key-pair
+      #     items:
+      #       - key: ca.crt
+      #         path: postgres-ca.crt
+
+    # -- Volume mount points for the additional volumes
+    # Use this to specify where CA certificates should be mounted in the container
+    # Example: Mount the PostgreSQL CA certificate to be referenced in connection string
+    extraVolumeMounts: []
+      # - name: postgres-ca-cert
+      #   mountPath: /etc/ssl/infisical-pg-ca.crt
+      #   readOnly: true
+
+  # Must be disabled if dbExternal.postgres.enabled is true
+  postgresql:
+    enabled: false
+
+  # Must be disabled if dbExternal.redis.enabled is true
+  redis:
+    enabled: false
+
+# DB Security features
+dbExternal:
+  # Custom PostgreSQL connection
+  postgres:
+    enabled: true
+    host: ""
+    port: 5432
+    database: ""
+    username: ""
+    passwordSecret:
+      name: ""
+      key: ""
+    ssl:
+      enabled: true
+      mode: ""
+      rootCertPath: ""
+
+  # Custom Redis connection
+  redis:
+    enabled: true
+    host: ""
+    port: 6379
+    passwordSecret:
+      name: ""
+      key: ""

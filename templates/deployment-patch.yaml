@@ -1,0 +1,42 @@
+---
+{{- if hasKey .Values "dbExternal" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-infisical-standalone-infisical
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+$patch: strategic
+spec:
+  selector:
+    matchLabels:
+      component: "infisical"
+      app: "infisical-standalone"
+      release: "{{ .Release.Name }}"
+  template:
+    spec:
+      containers:
+        - name: infisical-standalone-infisical
+          {{- if or .Values.dbExternal.postgres.enabled .Values.dbExternal.redis.enabled }}
+          env:
+          {{- if .Values.dbExternal.postgres.enabled }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.dbExternal.postgres.passwordSecret.name }}
+                  key: {{ .Values.dbExternal.postgres.passwordSecret.key }}
+            - name: DB_CONNECTION_URI
+              value: {{ include "infisical-db-secure.postgresConnectionString" . }}
+          {{- end }}
+          {{- if .Values.dbExternal.redis.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.dbExternal.redis.passwordSecret.name }}
+                  key: {{ .Values.dbExternal.redis.passwordSecret.key }}
+            - name: REDIS_URL
+              value: {{ include "infisical-db-secure.redisConnectionString" . }}
+          {{- end }}
+          {{- end }}
+{{- end }}
