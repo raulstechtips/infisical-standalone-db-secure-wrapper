@@ -1,0 +1,16 @@
+charts/
+prod.yaml
+# Temporary files
+*.tgz
+*.tmp
+*.log
+# IDE files
+.idea/
+.vscode/
+# Helm-related
+.helm/
+.helm-repo-cache/
+# Environment
+.env
+# Test output
+*.xml
