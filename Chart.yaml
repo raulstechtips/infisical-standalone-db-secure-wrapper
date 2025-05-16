@@ -1,0 +1,22 @@
+---
+apiVersion: v2
+name: infisical-db-secure
+description: Minimal wrapper chart for Infisical with secure database connections
+
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: 0.1.0
+
+# This is the version number of the application being deployed. This version number should be
+# incremented each time you make changes to the application. Versions are not expected to
+# follow Semantic Versioning. They should reflect the version the application is using.
+# It is recommended to use it with quotes.
+appVersion: "1.0"
+
+dependencies:
+  - name: infisical-standalone
+    version: 1.5.0
+    repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
