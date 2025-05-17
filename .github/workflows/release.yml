@@ -179,11 +179,17 @@ jobs:
 
           # Upload chart to GitHub releases
           echo "Uploading chart to GitHub releases..."
+          DRAFT_FLAG=""
+          if [[ "${{ github.event.inputs.draft }}" == "true" ]]; then
+            DRAFT_FLAG="--draft"
+          fi
+
           ./cr upload \
             --owner "$owner" \
             --git-repo "$repo" \
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --release-name-template "{{ .Name }}-{{ .Version }}" \
+            $DRAFT_FLAG \
             --skip-existing=true
 
           # Create a temporary release notes file using the content from release-drafter
@@ -193,6 +199,7 @@ jobs:
           gh release edit "$(yq '.name' Chart.yaml)-$(yq '.version' Chart.yaml)" \
             --notes-file release-notes.md \
             --title "$(yq '.name' Chart.yaml) v$(yq '.version' Chart.yaml)" \
+            $([[ "${{ github.event.inputs.draft }}" == "true" ]] && echo "--draft" || echo "") \
             --repo "$owner/$repo"
 
           # Check if gh-pages branch exists remotely
