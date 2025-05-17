@@ -208,7 +208,11 @@ jobs:
 
           # Copy the chart package
           echo "Copying chart package to repository root"
-          cp $CHART_PACKAGE ./
+          if [ "$CHART_PACKAGE" != "./$CHART_PACKAGE" ] && [ ! -f "./$CHART_PACKAGE" ]; then
+            cp "$CHART_PACKAGE" ./
+          else
+            echo "Chart package already in root directory, no need to copy"
+          fi
 
           # Update the Helm repo index
           if [ -f "index.yaml" ]; then
