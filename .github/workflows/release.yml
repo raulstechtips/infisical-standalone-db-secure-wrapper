@@ -255,3 +255,29 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Prepare Helm chart index for GitHub Pages
+      - name: Prepare Helm chart index
+        run: |
+          # Ensure chart packages directory exists
+          mkdir -p .cr-release-packages
+
+          # Copy packaged chart to the directory
+          cp $(ls *.tgz) .cr-release-packages/
+
+          # Generate or update Helm index
+          if [ -f "index.yaml" ]; then
+            helm repo index --url "https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper" --merge index.yaml .
+          else
+            helm repo index --url "https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper" .
+          fi
+
+      # Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: .
+          clean: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          single-commit: false
