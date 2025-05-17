@@ -185,6 +185,12 @@ jobs:
             git commit --allow-empty -m "Create gh-pages branch"
             git push origin gh-pages
             git checkout main
+          else
+            # If gh-pages branch exists remotely, fetch and reset to it
+            echo "Fetching existing gh-pages branch..."
+            git fetch origin gh-pages
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
           fi
 
           # Update Helm index and push to GitHub Pages
