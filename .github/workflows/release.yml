@@ -191,6 +191,10 @@ jobs:
             git checkout main
           fi
 
+          # Ensure .cr-index directory exists with proper permissions
+          mkdir -p .cr-index
+          touch .cr-index/index.yaml
+
           # Update Helm index and push to GitHub Pages
           echo "Updating Helm index..."
           ./cr index \
