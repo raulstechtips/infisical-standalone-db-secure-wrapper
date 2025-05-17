@@ -1,0 +1,18 @@
+apiVersion: v1
+entries:
+  infisical-db-secure:
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2025-05-17T00:15:23.508060178Z"
+    dependencies:
+    - name: infisical-standalone
+      repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+      version: 1.5.0
+    description: Minimal wrapper chart for Infisical with secure database connections
+    digest: fd5dcf52efd14d37617ed711c8253bb5f9dc1a50f7bb77810f20cb1ab8a9a638
+    name: infisical-db-secure
+    type: application
+    urls:
+    - https://github.com/raulstechtips/infisical-standalone-db-secure-wrapper/releases/download/infisical-db-secure-0.1.0/infisical-db-secure-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-05-17T00:15:23.508070187Z"
