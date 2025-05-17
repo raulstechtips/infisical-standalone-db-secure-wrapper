@@ -160,6 +160,15 @@ jobs:
           tar -xzf cr.tar.gz
           rm -f cr.tar.gz
 
+          # Install GitHub CLI
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh
+
+          # Authenticate GitHub CLI
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
           # Get repository owner and name
           owner="raulstechtips"
           repo="infisical-standalone-db-secure-wrapper"
@@ -176,6 +185,15 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --release-name-template "{{ .Name }}-{{ .Version }}" \
             --skip-existing=true
+
+          # Create a temporary release notes file using the content from release-drafter
+          echo "${{ steps.release_notes.outputs.body }}" > release-notes.md
+
+          # Re-update the existing release with proper release notes
+          gh release edit "$(yq '.name' Chart.yaml)-$(yq '.version' Chart.yaml)" \
+            --notes-file release-notes.md \
+            --title "$(yq '.name' Chart.yaml) v$(yq '.version' Chart.yaml)" \
+            --repo "$owner/$repo"
 
           # Check if gh-pages branch exists remotely
           git fetch origin
