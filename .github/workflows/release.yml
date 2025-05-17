@@ -144,6 +144,10 @@ jobs:
           config-name: release-drafter.yml
           disable-autolabeler: false
           commitish: main
+          publish: false
+          name: ""
+          tag: ""
+          version: ""
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -216,6 +220,20 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --charts-repo "https://${owner}.github.io/${repo}" \
             --push
+
+          # Verify gh-pages was updated
+          echo "Verifying gh-pages deployment..."
+          git checkout gh-pages
+          ls -la
+          echo "Current branch: $(git branch --show-current)"
+          echo "Ensuring index.yaml exists..."
+          if [ ! -f "index.yaml" ]; then
+            echo "index.yaml not found, copying from .cr-index..."
+            cp -f .cr-index/index.yaml index.yaml
+            git add index.yaml
+            git commit -m "Ensure index.yaml exists at root level"
+            git push origin gh-pages
+          fi
 
       # Package the chart for GitHub Release
       - name: Package Helm Chart for GitHub Release
