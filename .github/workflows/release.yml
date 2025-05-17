@@ -176,10 +176,10 @@ jobs:
 
           # Create GitHub release and upload chart
           RELEASE_TAG="${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}"
-          RELEASE_NAME="${{ github.event.inputs.release_title || format('{0} v{1}', steps.chart_info.outputs.name, steps.chart_info.outputs.version) }}"
+          RELEASE_NAME="${{ steps.chart_info.outputs.name }} v${{ steps.chart_info.outputs.version }}"
 
-          # Create release notes file
-          echo "${{ env.RELEASE_NOTES }}" > release-notes.md
+          # Extract release notes content from release-drafter output
+          echo "${{ steps.release_notes.outputs.body }}" > release-notes.md
 
           # Create release with chart as asset
           gh release create "$RELEASE_TAG" \
