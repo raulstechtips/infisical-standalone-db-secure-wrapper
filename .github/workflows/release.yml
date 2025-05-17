@@ -175,7 +175,7 @@ jobs:
             --git-repo "$repo" \
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --release-name-template "{{ .Name }}-{{ .Version }}" \
-            --skip-existing=false
+            --skip-existing=true
 
           # Check if gh-pages branch exists locally or create it
           if ! git show-ref --verify --quiet refs/heads/gh-pages; then
