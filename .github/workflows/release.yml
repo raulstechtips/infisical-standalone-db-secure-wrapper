@@ -177,20 +177,18 @@ jobs:
             --release-name-template "{{ .Name }}-{{ .Version }}" \
             --skip-existing=true
 
-          # Check if gh-pages branch exists locally or create it
-          if ! git show-ref --verify --quiet refs/heads/gh-pages; then
+          # Check if gh-pages branch exists remotely
+          git fetch origin
+          if git ls-remote --heads origin gh-pages | grep -q 'gh-pages'; then
+            echo "Using existing gh-pages branch..."
+            git checkout -b gh-pages origin/gh-pages
+          else
             echo "Creating gh-pages branch..."
             git checkout --orphan gh-pages
             git rm -rf .
             git commit --allow-empty -m "Create gh-pages branch"
             git push origin gh-pages
             git checkout main
-          else
-            # If gh-pages branch exists remotely, fetch and reset to it
-            echo "Fetching existing gh-pages branch..."
-            git fetch origin gh-pages
-            git checkout gh-pages
-            git reset --hard origin/gh-pages
           fi
 
           # Update Helm index and push to GitHub Pages
