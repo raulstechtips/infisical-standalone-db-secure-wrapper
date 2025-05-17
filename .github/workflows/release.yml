@@ -151,15 +151,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Direct approach using chart-releaser CLI
-      - name: Package and Deploy Helm Chart to GitHub Pages
+      # Install GitHub CLI
+      - name: Install GitHub CLI
         run: |
-          # Download and setup chart-releaser
-          curl -sSLo cr.tar.gz "https://github.com/helm/chart-releaser/releases/download/v1.5.0/chart-releaser_1.5.0_linux_amd64.tar.gz"
-          tar -xzf cr.tar.gz
-          rm -f cr.tar.gz
-
-          # Install GitHub CLI
+          # Install GitHub CLI if not already installed
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
           sudo apt update
@@ -168,104 +163,34 @@ jobs:
           # Authenticate GitHub CLI
           echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
-          # Get repository owner and name
-          owner="raulstechtips"
-          repo="infisical-standalone-db-secure-wrapper"
-
+      # Direct approach using only Helm commands (no chart-releaser)
+      - name: Package and Deploy Helm Chart to GitHub Releases
+        run: |
           # Package the chart
           echo "Packaging Helm chart..."
-          ./cr package .
-
-          # Upload chart to GitHub releases
-          echo "Uploading chart to GitHub releases..."
-          ./cr upload \
-            --owner "$owner" \
-            --git-repo "$repo" \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --release-name-template "{{ .Name }}-{{ .Version }}" \
-            --skip-existing=true
-
-          # Create a temporary release notes file using the content from release-drafter
-          echo "${{ steps.release_notes.outputs.body }}" > release-notes.md
-
-          # Re-update the existing release with proper release notes
-          gh release edit "$(yq '.name' Chart.yaml)-$(yq '.version' Chart.yaml)" \
-            --notes-file release-notes.md \
-            --title "$(yq '.name' Chart.yaml) v$(yq '.version' Chart.yaml)" \
-            --repo "$owner/$repo"
-
-          # Check if gh-pages branch exists remotely
-          git fetch origin
-          if git ls-remote --heads origin gh-pages | grep -q 'gh-pages'; then
-            echo "Using existing gh-pages branch..."
-            git checkout -b gh-pages origin/gh-pages
-          else
-            echo "Creating gh-pages branch..."
-            git checkout --orphan gh-pages
-            git rm -rf .
-            git commit --allow-empty -m "Create gh-pages branch"
-            git push origin gh-pages
-            git checkout main
-          fi
-
-          # Ensure .cr-index directory exists with proper permissions
-          mkdir -p .cr-index
-          touch .cr-index/index.yaml
-
-          # Update Helm index and push to GitHub Pages
-          echo "Updating Helm index..."
-          ./cr index \
-            --owner "$owner" \
-            --git-repo "$repo" \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --charts-repo "https://${owner}.github.io/${repo}" \
-            --push
-
-          # Verify gh-pages was updated
-          echo "Verifying gh-pages deployment..."
-          git checkout gh-pages
-          ls -la
-          echo "Current branch: $(git branch --show-current)"
-          echo "Ensuring index.yaml exists..."
-          if [ ! -f "index.yaml" ]; then
-            echo "index.yaml not found, copying from .cr-index..."
-            cp -f .cr-index/index.yaml index.yaml
-            git add index.yaml
-            git commit -m "Ensure index.yaml exists at root level"
-            git push origin gh-pages
-          fi
-
-      # Package the chart for GitHub Release
-      - name: Package Helm Chart for GitHub Release
-        id: package
-        run: |
           helm package .
-          PACKAGE_PATH=$(ls *.tgz)
-          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
 
-      # Create GitHub Release
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}
-          name: ${{ github.event.inputs.release_title || format('{0} v{1}', steps.chart_info.outputs.name, steps.chart_info.outputs.version) }}
-          body: ${{ steps.release_notes.outputs.body }}
-          files: ${{ steps.package.outputs.package_path }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Get the packaged chart file
+          CHART_PACKAGE=$(ls *.tgz)
+          echo "Created chart package: $CHART_PACKAGE"
+
+          # Create GitHub release and upload chart
+          RELEASE_TAG="${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}"
+          RELEASE_NAME="${{ github.event.inputs.release_title || format('{0} v{1}', steps.chart_info.outputs.name, steps.chart_info.outputs.version) }}"
+
+          # Create release notes file
+          echo "${{ env.RELEASE_NOTES }}" > release-notes.md
+
+          # Create release with chart as asset
+          gh release create "$RELEASE_TAG" \
+            --title "$RELEASE_NAME" \
+            --notes-file release-notes.md \
+            "$CHART_PACKAGE"
 
       # Prepare Helm chart index for GitHub Pages
       - name: Prepare Helm chart index
         run: |
-          # Ensure chart packages directory exists
-          mkdir -p .cr-release-packages
-
-          # Copy packaged chart to the directory
-          cp $(ls *.tgz) .cr-release-packages/
-
-          # Generate or update Helm index
+          # Create or update the Helm repo index
           if [ -f "index.yaml" ]; then
             helm repo index --url "https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper" --merge index.yaml .
           else
