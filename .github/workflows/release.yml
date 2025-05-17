@@ -187,15 +187,40 @@ jobs:
             --notes-file release-notes.md \
             "$CHART_PACKAGE"
 
-      # Prepare Helm chart index for GitHub Pages
-      - name: Prepare Helm chart index
+      # Set up and deploy to GitHub Pages with proper chart archive
+      - name: Configure GitHub Pages
         run: |
-          # Create or update the Helm repo index
+          # Get chart information
+          CHART_PACKAGE=$(ls *.tgz)
+          echo "Chart package: $CHART_PACKAGE"
+
+          # Create a temporary directory for gh-pages content
+          mkdir -p gh-pages-content
+
+          # Check if we need to clone the existing gh-pages branch
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            echo "Cloning existing gh-pages branch..."
+            git clone --branch gh-pages --single-branch --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-content
+            # Copy existing content
+            cp -r gh-pages-content/* ./ 2>/dev/null || true
+            rm -rf gh-pages-content
+          fi
+
+          # Copy the chart package
+          echo "Copying chart package to repository root"
+          cp $CHART_PACKAGE ./
+
+          # Update the Helm repo index
           if [ -f "index.yaml" ]; then
+            echo "Updating existing index.yaml"
             helm repo index --url "https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper" --merge index.yaml .
           else
+            echo "Creating new index.yaml"
             helm repo index --url "https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper" .
           fi
+
+          # Ensure we have a .nojekyll file to bypass GitHub Pages Jekyll processing
+          touch .nojekyll
 
       # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
@@ -206,3 +231,10 @@ jobs:
           clean: false
           token: ${{ secrets.GITHUB_TOKEN }}
           single-commit: false
+          commit-message: |
+            Deploy Helm chart ${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}
+
+            This commit includes:
+            - Updated index.yaml
+            - Chart package: ${{ steps.chart_info.outputs.name }}-${{ steps.chart_info.outputs.version }}.tgz
+            - Release notes
