@@ -3,7 +3,21 @@ entries:
   infisical-db-secure:
   - apiVersion: v2
     appVersion: "1.0"
-    created: "2025-05-18T19:34:38.602745917Z"
+    created: "2025-05-18T21:45:58.34591044Z"
+    dependencies:
+    - name: infisical-standalone
+      repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+      version: 1.5.0
+    description: Minimal wrapper chart for Infisical with secure database connections
+    digest: cd14f01c60672273a28e66798b07325b3cf4027a2e4b9a9ee585b1a8b572d1ca
+    name: infisical-db-secure
+    type: application
+    urls:
+    - https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper/infisical-db-secure-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: "1.0"
+    created: "2025-05-18T21:45:58.331111867Z"
     dependencies:
     - name: infisical-standalone
       repository: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
@@ -18,7 +32,7 @@ entries:
   infisical-standalone:
   - apiVersion: v2
     appVersion: 1.0.1
-    created: "2025-05-18T19:34:38.61433228Z"
+    created: "2025-05-18T21:45:58.357285043Z"
     dependencies:
     - condition: ingress.nginx.enabled
       name: ingress-nginx
@@ -39,4 +53,4 @@ entries:
     urls:
     - https://raulstechtips.github.io/infisical-standalone-db-secure-wrapper/charts/infisical-standalone-1.5.0.tgz
     version: 1.5.0
-generated: "2025-05-18T19:34:38.589627919Z"
+generated: "2025-05-18T21:45:58.317784652Z"
