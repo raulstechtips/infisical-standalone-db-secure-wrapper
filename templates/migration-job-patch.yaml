@@ -1,6 +1,5 @@
 ---
 {{- $infisicalValues := index .Values "infisical-standalone" "infisical" }}
-{{- if hasKey .Values "dbExternal" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -8,7 +7,8 @@ metadata:
   annotations:
     helm.sh/hook: post-install,post-upgrade
     helm.sh/hook-weight: "0"
-$patch: strategic
+    helm.sh/resource-policy: keep
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   template:
     spec:
@@ -32,4 +32,3 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-{{- end }}
