@@ -1,7 +1,4 @@
-charts/
-prod.yaml
 # Temporary files
-*.tgz
 *.tmp
 *.log
 # IDE files
